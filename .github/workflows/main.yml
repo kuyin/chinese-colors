@@ -1,0 +1,52 @@
+name: Sync Fork with Upstream
+
+on:
+  schedule:
+    # 例如：每天凌晨3点执行一次 (UTC 时间)
+    # 你可以根据需要调整频率，查阅 cron 语法
+    - cron: '0 3 * * *'
+  workflow_dispatch: # 允许手动触发此 workflow
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Fork
+        uses: actions/checkout@v4
+        with:
+          # 需要权限推送到你的 fork。GITHUB_TOKEN 通常有此权限。
+          # 如果遇到权限问题，你可能需要创建一个 Personal Access Token (PAT) 并作为 secret 使用。
+          # 对于同一个仓库内的操作，GITHUB_TOKEN 应该足够。
+          ref: main # 或者你的 fork 中 Vercel 部署的那个分支，如 master
+
+      - name: Set up Git User
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+
+      - name: Add Upstream Remote
+        # 将 <URL_OF_THE_ORIGINAL_AUTHOR_S_REPOSITORY> 替换为原作者仓库的 HTTPS URL
+        # 例如: https://github.com/original-author/original-repo.git
+        run: git remote add upstream https://github.com/zerosoul/chinese-colors
+
+      - name: Fetch from Upstream
+        run: git fetch upstream
+
+      - name: Merge Upstream Changes
+        run: |
+          # 切换到你 fork 的主分支 (Vercel 部署的那个分支)
+          git switch master # 或者你的分支名，如 master
+
+          # 尝试将上游仓库的主分支合并到你 fork 的主分支
+          # 如果你的 fork 主分支没有与上游冲突的独立提交，这通常会顺利进行
+          # 如果有冲突，此步骤可能会失败，需要你手动解决冲突后再推送
+          # 使用 --no-rebase 确保是合并操作
+          git pull upstream master --no-rebase # 假设原作者的主分支也是 main
+
+          # 如果原作者的分支是 master，则使用: git pull upstream master --no-rebase
+
+      - name: Push Changes to Fork
+        run: git push origin master # 或者你的分支名
+        env:
+          # GITHUB_TOKEN 是 GitHub Actions 自动提供的，用于授权对当前仓库的操作
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
